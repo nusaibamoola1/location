@@ -39,4 +39,6 @@ dependencies {
 
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation 'com.google.android.gms:play-services-location:18.0.0' //Location dependency
+
+    implementation 'com.squareup.okhttp3:okhttp:4.1.0'
 }
