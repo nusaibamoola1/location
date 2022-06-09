@@ -36,21 +36,22 @@
         android:text="Volunteer" />
 
     <TextView
-        android:id="@+id/addressText"
+        android:id="@+id/Long"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Your location" />
+        android:hint="Longitude" />
 
-    <Button
-        android:id="@+id/locationButton"
+    <TextView
+        android:id="@+id/Lat"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Find Location" />
+        android:hint="Latitude" />
 
     <Button
         android:id="@+id/Register"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:onClick="doRegister"
         android:text="register" />
 
     <TextView

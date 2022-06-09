@@ -14,6 +14,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -41,8 +43,11 @@ import com.google.android.gms.tasks.Task;
 import android.os.Bundle;
 
 import org.jetbrains.annotations.NotNull;
+import org.w3c.dom.Text;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -54,7 +59,8 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView AddressText;
+    private TextView longitudeTextView;
+    private TextView latitudeTextView;
     private Button LocationButton;
     private Button registerButton;
     private LocationRequest locationRequest;
@@ -70,21 +76,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        AddressText = findViewById(R.id.addressText);
+        longitudeTextView = findViewById(R.id.Long);
+        latitudeTextView = findViewById(R.id.Lat);
+
         LocationButton = findViewById(R.id.locationButton);
+        registerButton = findViewById(R.id.Register);
 
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         locationRequest.setInterval(5000);
         locationRequest.setFastestInterval(2000);
 
-        LocationButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
 
-                getCurrentLocation();
-            }
-        });
+        getCurrentLocation();
+
 
         registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -147,7 +152,8 @@ public class MainActivity extends AppCompatActivity {
                                         double latitude = locationResult.getLocations().get(index).getLatitude();
                                         double longitude = locationResult.getLocations().get(index).getLongitude();
 
-                                        AddressText.setText("Latitude: "+ latitude + "\n" + "Longitude: "+ longitude);
+                                        longitudeTextView.setText(Double.toString(longitude));
+                                        latitudeTextView.setText(Double.toString(latitude));
                                     }
                                 }
                             }, Looper.getMainLooper());
@@ -212,7 +218,19 @@ public class MainActivity extends AppCompatActivity {
 
         isEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
         return isEnabled;
+    }
 
+    private String getAddress(String latitude, String longitude) {
+
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+        try {
+            List<Address> addresses = geocoder.getFromLocation(Double.parseDouble(latitude), Double.parseDouble(longitude), 1);
+            String address = addresses.get(0).getLocality();
+            return address;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -220,17 +238,47 @@ public class MainActivity extends AppCompatActivity {
     public void doRegister(View v) {
         EditText Username = (EditText)findViewById(R.id.Username);
         EditText Password = (EditText)findViewById(R.id.Password);
+        TextView longitutudeTV = (TextView)findViewById(R.id.Long);
+        TextView latitudeTV = (TextView)findViewById(R.id.Lat);
+
+        CheckBox vol = (CheckBox)findViewById(R.id.Volunteer);
+        CheckBox atrisk = (CheckBox)findViewById(R.id.AtRisk);
 
         String username = Username.getText().toString();
         String password = Password.getText().toString();
+        String longitudeAsString = longitutudeTV.getText().toString();
+        String latitudeAsString = latitudeTV.getText().toString();
+
+        String location = getAddress(latitudeAsString, longitudeAsString);
 
         OkHttpClient client = new OkHttpClient();
         String url = "https://lamp.ms.wits.ac.za/~s2430972/users.php";
 
+        if(vol.isChecked() && atrisk.isChecked()){
+            Toast.makeText(this, "Only choose one",Toast.LENGTH_LONG).show();
+        }
+        else if(vol.isChecked()==false && atrisk.isChecked()==false){
+            Toast.makeText(this, "Select user type",Toast.LENGTH_LONG).show();
+        }
+        else if(vol.isChecked()) {
+            type = "Volunteer";
+        }
+        else if(atrisk.isChecked()) {
+            type = "At Risk";
+        }
+
         RequestBody formBody = new FormBody.Builder()
-                .add("Username", username)
-                .add("Password", password)
+                .add("username", username)
+                .add("password", password)
+                .add("type", type)
+                .add("location", location)
                 .build();
+
+        System.out.println("username " + username);
+        System.out.println("password " + password);
+        System.out.println("type " + type);
+        System.out.println("address " + location);
+
         Request request = new Request.Builder()
                 .url(url)
                 .post(formBody)
@@ -243,13 +291,13 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                if(response.isSuccessful()){
-                    final TextView reg = (TextView)findViewById(R.id.isRegistered);
-                    final String resp = response.body().string();
+                if(response.isSuccessful()) {
+                    TextView reg = (TextView)findViewById(R.id.isRegistered);
+                    String resp = response.body().string();
 
-                    System.out.println(resp);
+                    System.out.println(response);
 
-                    if(resp.contains("False")){
+                    if(resp.contains("False")) {
                         MainActivity.this.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -273,90 +321,86 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void confirm(View v){
-        CheckBox vol =(CheckBox)findViewById(R.id.Volunteer);
-        CheckBox atrisk =(CheckBox)findViewById(R.id.AtRisk);
-
-        if(vol.isChecked() && atrisk.isChecked()){
-            Toast.makeText(this, "Only choose one",Toast.LENGTH_LONG).show();
-
-        }
-        else if(vol.isChecked()==false && atrisk.isChecked()==false){
-            Toast.makeText(this, "Select user type",Toast.LENGTH_LONG).show();
-        }
-        else if(vol.isChecked()){
-            x = 1;
-            type ="Volunteer";
-            url ="https://lamp.ms.wits.ac.za/~s2430972/volunteers.php";
-            OkHttpClient client = new OkHttpClient();
-            RequestBody Formbody = new FormBody.Builder()
-                    .add("username", username)
-                    .add("type", type)
-                    .add("address", fullAddress)
-                    .build();
-
-            Request request = new Request.Builder().url(url).post(Formbody).build();
-
-            client.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                    e.printStackTrace();
-                }
-
-                @Override
-                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                    String result = response.body().string();
-                    System.out.println(result);
-                    if (result.contains("Updated")) {
-                        MainActivity.this.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Intent intent = new Intent(MainActivity.this, a.class);
-                                startActivity(intent);
-                            }
-                        });
-                    } else if (result.trim().equalsIgnoreCase("Failed")) {
-                        System.out.println("Cannot insert");
-                    }
-                }
-            });
-        }
-        else{
-            x = 0;
-            type = "At Risk";
-            url ="https://lamp.ms.wits.ac.za/~s2430972/atrisk.php";
-            OkHttpClient client = new OkHttpClient();
-            RequestBody Formbody = new FormBody.Builder()
-                    .add("email", username)
-                    .add("type", type)
-                    .add("address", fullAddress)
-                    .build();
-
-            Request request = new Request.Builder().url(url).post(Formbody).build();
-
-            client.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                    e.printStackTrace();
-                }
-
-                @Override
-                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                    String result = response.body().string();
-                    System.out.println(result);
-                    if (result.contains("Updated")) {
-                        MainActivity.this.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Intent intent = new Intent(MainActivity.this, a.class);
-                                startActivity(intent);
-                            }
-                        });
-                    } else if (result.contains("Failed")) {
-                        System.out.println("Failed to insert");
-                    }
-                }
-            });
-        }
-    }
+//    public void confirm(View v){
+//        if(vol.isChecked() && atrisk.isChecked()){
+//            Toast.makeText(this, "Only choose one",Toast.LENGTH_LONG).show();
+//        }
+//        else if(vol.isChecked()==false && atrisk.isChecked()==false){
+//            Toast.makeText(this, "Select user type",Toast.LENGTH_LONG).show();
+//        }
+//        else if(vol.isChecked()){
+//            x = 1;
+//            type ="Volunteer";
+//            url ="https://lamp.ms.wits.ac.za/~s2430972/volunteers.php";
+//            OkHttpClient client = new OkHttpClient();
+//            RequestBody Formbody = new FormBody.Builder()
+//                    .add("username", username)
+//                    .add("type", type)
+//                    .add("address", fullAddress)
+//                    .build();
+//
+//            Request request = new Request.Builder().url(url).post(Formbody).build();
+//
+//            client.newCall(request).enqueue(new Callback() {
+//                @Override
+//                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+//                    e.printStackTrace();
+//                }
+//
+//                @Override
+//                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+//                    String result = response.body().string();
+//                    System.out.println(result);
+//                    if (result.contains("Updated")) {
+//                        MainActivity.this.runOnUiThread(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                Intent intent = new Intent(MainActivity.this, a.class);
+//                                startActivity(intent);
+//                            }
+//                        });
+//                    } else if (result.trim().equalsIgnoreCase("Failed")) {
+//                        System.out.println("Cannot insert");
+//                    }
+//                }
+//            });
+//        }
+//        else{
+//            x = 0;
+//            type = "At Risk";
+//            url ="https://lamp.ms.wits.ac.za/~s2430972/atrisk.php";
+//            OkHttpClient client = new OkHttpClient();
+//            RequestBody Formbody = new FormBody.Builder()
+//                    .add("username", username)
+//                    .add("type", type)
+//                    .add("address", fullAddress)
+//                    .build();
+//
+//            Request request = new Request.Builder().url(url).post(Formbody).build();
+//
+//            client.newCall(request).enqueue(new Callback() {
+//                @Override
+//                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+//                    e.printStackTrace();
+//                }
+//
+//                @Override
+//                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+//                    String result = response.body().string();
+//                    System.out.println(result);
+//                    if (result.contains("Updated")) {
+//                        MainActivity.this.runOnUiThread(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                Intent intent = new Intent(MainActivity.this, a.class);
+//                                startActivity(intent);
+//                            }
+//                        });
+//                    } else if (result.contains("Failed")) {
+//                        System.out.println("Failed to insert");
+//                    }
+//                }
+//            });
+//        }
+//    }
 }
